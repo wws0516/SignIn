@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="signin.dao.AttendanceMapper">
+
+    <resultMap id="attendanceResultMap" type="signin.entity.Attendance">
+        <id column="id" jdbcType="INTEGER" property="id"/>
+        <result column="user_id" jdbcType="INTEGER" property="userId"/>
+        <result column="signtime" jdbcType="DATE" property="signtime"/>
+        <result column="attend" jdbcType="INTEGER" property="attend"/>
+
+        <association property="user" javaType="signin.entity.User">
+            <id column="user_id" property="id"/>
+            <result column="login" property="login"/>
+            <result column="name" property="name"/>
+        </association>
+
+        <!-- 一对一 -->
+        <association property="leave" javaType="signin.entity.Leave">
+            <id column="leave_id" property="leave_id"/>
+            <result column="reason" property="reason"/>
+        </association>
+    </resultMap>
+
+
+    <select id="select" parameterType="signin.entity.Attendance" resultMap="attendanceResultMap">
+        select *
+        from Attendance
+        where user_id = #{userId}
+          and signtime = #{signtime};
+    </select>
+
+    <!--联合查询-->
+    <select id="selectPageList" parameterType="signin.entity.Page" resultMap="attendanceResultMap">
+        select a.*,u.name,l.reason
+        from attendance a
+                 left join `user` u on a.user_id = u.id
+                 left join `leave` l on a.id = l.attendance_id
+        where a.signtime = #{signtime} limit #{start}
+            ,#{rows}
+    </select>
+
+    <!--分页查询总记录数-->
+    <select id="selectPageCount" parameterType="signin.entity.Page" resultType="integer">
+        select count(*)
+        from attendance
+        where signtime = #{signtime}
+    </select>
+
+    <!--插入-->
+    <insert id="insert" parameterType="signin.entity.Attendance">
+        insert into attendance
+        values (#{id}, #{userId}, #{signtime}, #{attend})
+    </insert>
+
+    <!--联合插入-->
+    <insert id="save" parameterType="signin.entity.Attendance" useGeneratedKeys="true" keyProperty="id">
+        insert into attendance(user_id, signtime, attend)
+        values (#{userId}, #{signtime}, #{attend})
+    </insert>
+
+    <!--查询我的请假记录-->
+    <select id="selectMyLeave" parameterType="signin.entity.Page" resultMap="attendanceResultMap">
+        select a.*,l.*
+        from attendance a
+                 left join `leave` l on a.id = l.attendance_id
+        where a.attend = 1
+          and DATE_FORMAT(a.signtime, '%Y%m') = DATE_FORMAT(#{signtime}, '%Y%m')
+          and user_id = #{userId} limit #{start}
+            ,#{rows}
+    </select>
+
+    <!--查询我的考勤记录-->
+    <select id="selectMyAttendance" parameterType="signin.entity.Attendance" resultMap="attendanceResultMap">
+        select *
+        FROM attendance
+        WHERE DATE_FORMAT(signtime, '%Y%m') = DATE_FORMAT(#{signtime}, '%Y%m')
+          and user_id = #{userId}
+    </select>
+
+    <!--查询请假总记录数-->
+    <select id="selectLeaveCount" parameterType="signin.entity.Page" resultType="integer">
+        select count(*)
+        from attendance
+        where attend = 1
+          and DATE_FORMAT(signtime, '%Y%m') = DATE_FORMAT(#{signtime}, '%Y%m')
+          and user_id = #{userId}
+    </select>
+
+    <update id="update" parameterType="signin.entity.Attendance">
+        update attendance
+        set signtime=#{signtime}
+        where id = #{id}
+    </update>
+
+    <!--批量删除-->
+    <delete id="updateList">
+        update attendance set attend=0 where id in
+        <foreach collection="array" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!--查询某个人的考勤记录-->
+    <select id="selectOneUser" parameterType="map" resultMap="attendanceResultMap">
+        select a.*,u.*,l.reason
+        from attendance a
+                 left join `user` u on a.user_id = u.id
+                 left join `leave` l on a.id = l.attendance_id
+        where DATE_FORMAT(signtime, '%Y%m') = DATE_FORMAT(#{signtime}, '%Y%m')
+          and u.login = #{login}
+    </select>
+
+</mapper>
